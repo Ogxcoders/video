@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  vps-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vps-api
+    ports:
+      - "80"
+    volumes:
+      - vps-api-videos:/var/www/html/videos
+      - vps-api-hls:/var/www/html/hls
+      - vps-api-logs:/var/www/html/logs
+      - vps-api-media:/var/www/media
+    environment:
+      # API Security
+      API_KEY: "CHANGE_THIS_TO_YOUR_SECURE_API_KEY_64_CHARS"
+      WEBHOOK_SECRET: "CHANGE_THIS_TO_YOUR_SECURE_WEBHOOK_SECRET_64_CHARS"
+      ADMIN_PASSWORD: "CHANGE_THIS_TO_YOUR_SECURE_PASSWORD"
+      
+      # Redis Configuration
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      
+      # Worker Configuration
+      WORKER_COUNT: "5"
+      
+      # WordPress Integration
+      WORDPRESS_WEBHOOK_URL: "https://ogtemplate.com/wp-json/cvp/v1/webhook"
+      
+      # Media Storage
+      MEDIA_BASE_PATH: "/var/www/media/content"
+      MEDIA_BASE_URL: "https://v.ogtemplate.com/content"
+      
+      # Legacy Settings
+      BASE_URL: "https://post.trendss.net"
+      HLS_URL_BASE: "https://post.trendss.net/hls"
+      ALLOWED_ORIGINS: "https://ogtemplate.com"
+      FFMPEG_PATH: "/usr/bin/ffmpeg"
+      PARALLEL_LIMIT: "1"
+      DEBUG: "false"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    labels:
+      # Traefik labels for Coolify automatic routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.vps-api.rule=Host(`post.trendss.net`)"
+      - "traefik.http.routers.vps-api.entrypoints=websecure"
+      - "traefik.http.routers.vps-api.tls=true"
+      - "traefik.http.routers.vps-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vps-api.loadbalancer.server.port=80"
+      - "traefik.http.services.vps-api.loadbalancer.server.scheme=http"
+      # HTTP to HTTPS redirect
+      - "traefik.http.routers.vps-api-http.rule=Host(`post.trendss.net`)"
+      - "traefik.http.routers.vps-api-http.entrypoints=web"
+      - "traefik.http.routers.vps-api-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    depends_on:
+      - redis
+    networks:
+      - coolify
+
+  redis:
+    image: redis:7-alpine
+    container_name: vps-api-redis
+    volumes:
+      - vps-api-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - coolify
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  vps-api-videos:
+    driver: local
+  vps-api-hls:
+    driver: local
+  vps-api-logs:
+    driver: local
+  vps-api-media:
+    driver: local
+  vps-api-redis:
+    driver: local

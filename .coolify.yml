@@ -1,0 +1,28 @@
+# Coolify Configuration File
+# This ensures proper deployment settings
+
+networks:
+  - coolify
+
+ports:
+  - 80
+
+healthcheck:
+  test: curl -f http://localhost/health.php || exit 1
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+
+labels:
+  traefik.enable: "true"
+  traefik.http.routers.vps-api.rule: "Host(`post.trendss.net`)"
+  traefik.http.routers.vps-api.entrypoints: "websecure"
+  traefik.http.routers.vps-api.tls: "true"
+  traefik.http.routers.vps-api.tls.certresolver: "letsencrypt"
+  traefik.http.services.vps-api.loadbalancer.server.port: "80"
+  traefik.http.services.vps-api.loadbalancer.server.scheme: "http"
+  traefik.http.routers.vps-api-http.rule: "Host(`post.trendss.net`)"
+  traefik.http.routers.vps-api-http.entrypoints: "web"
+  traefik.http.routers.vps-api-http.middlewares: "redirect-to-https"
+  traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: "https"

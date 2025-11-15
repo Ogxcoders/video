@@ -1,0 +1,52 @@
+# Runtime directories (created by container)
+videos/
+hls/
+logs/
+*.log
+
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation (not needed in container)
+*.md
+README*
+DEPLOYMENT-GUIDE*
+DOCKER-README*
+COOLIFY-DEPLOYMENT*
+QUICK-START*
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Test files
+test/
+tests/
+*.test.php
+phpunit.xml
+
+# Docker files
+docker-compose.yml
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Other project directories (Replit specific)
+../attached_assets/
+../wordpress-plugin/

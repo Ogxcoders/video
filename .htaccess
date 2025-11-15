@@ -1,0 +1,69 @@
+# DirectoryIndex for default pages
+DirectoryIndex index.html index.php health.php
+
+# Enable URL rewriting
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Allow access to static files
+    RewriteCond %{REQUEST_URI} \.(html|css|js|jpg|jpeg|png|gif|ico)$ [NC]
+    RewriteRule ^ - [L]
+    
+    # Allow access to health check (no auth required)
+    RewriteCond %{REQUEST_URI} health\.php$
+    RewriteRule ^ - [L]
+    
+    # Allow access to HLS directory
+    RewriteCond %{REQUEST_URI} ^/hls/
+    RewriteRule ^ - [L]
+    
+    # Allow access to test connection endpoint
+    RewriteCond %{REQUEST_URI} test-connection\.php$
+    RewriteRule ^ - [L]
+    
+    # Allow access to dashboard
+    RewriteCond %{REQUEST_URI} dashboard\.php$
+    RewriteRule ^ - [L]
+    
+    # Don't rewrite if file or directory exists
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Content-Type-Options "nosniff"
+    
+    # CORS headers for HLS files
+    <FilesMatch "\.(m3u8|ts)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Range"
+    </FilesMatch>
+</IfModule>
+
+# Cache control for HLS files
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType application/vnd.apple.mpegurl "access plus 0 seconds"
+    ExpiresByType application/x-mpegURL "access plus 0 seconds"
+    ExpiresByType video/MP2T "access plus 1 year"
+</IfModule>
+
+# Set correct MIME types for HLS
+<IfModule mod_mime.c>
+    AddType application/vnd.apple.mpegurl .m3u8
+    AddType video/MP2T .ts
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "(config\.php|VideoProcessor\.php|setup\.php|\.log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
