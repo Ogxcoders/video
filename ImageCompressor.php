@@ -1,7 +1,7 @@
 <?php
 /**
  * Image Compressor Class
- * Handles compression of images to WebP format at 87% quality
+ * Handles compression of images to WebP format at 22% quality (88% compression)
  * Supports: JPG, JPEG, PNG, GIF, WebP, BMP, TIFF
  */
 
@@ -297,7 +297,7 @@ class ImageCompressor {
     }
     
     /**
-     * Compress image to WebP format at 87% quality
+     * Compress image to WebP format at 22% quality (88% compression)
      * 
      * @param array $jobData Job data containing image paths
      * @return array Result with success status and output paths
@@ -498,7 +498,7 @@ class ImageCompressor {
             chmod($paths['original'], 0644);
             $this->log("Original image copied successfully");
             
-            $this->log("Starting WebP compression at 87% quality...");
+            $this->log("Starting WebP compression at 22% quality (88% compression)...");
             $compressionResult = $this->compressToWebP($paths['original'], $paths['thumbnail_webp']);
             
             if (!$compressionResult['success']) {
@@ -709,7 +709,7 @@ class ImageCompressor {
     }
     
     /**
-     * Compress image to WebP using FFmpeg at 87% quality
+     * Compress image to WebP using FFmpeg at 22% quality (88% compression)
      */
     private function compressToWebP($inputPath, $outputPath) {
         $startTime = microtime(true);
@@ -717,7 +717,7 @@ class ImageCompressor {
         $ffmpeg = $this->config['ffmpeg_binary'];
         
         $command = sprintf(
-            '%s -y -i %s -c:v libwebp -quality 87 -compression_level 6 -preset photo %s 2>&1',
+            '%s -y -i %s -c:v libwebp -quality 22 -compression_level 6 -preset photo %s 2>&1',
             escapeshellarg($ffmpeg),
             escapeshellarg($inputPath),
             escapeshellarg($outputPath)
@@ -726,7 +726,7 @@ class ImageCompressor {
         $this->log("FFmpeg WebP conversion started", [
             'input' => basename($inputPath),
             'output' => basename($outputPath),
-            'quality' => '87%',
+            'quality' => '22%',
             'preset' => 'photo'
         ]);
         
