@@ -1,0 +1,112 @@
+# DirectoryIndex for default pages
+DirectoryIndex index.html index.php health.php
+
+# PHP Error handling
+<IfModule mod_php.c>
+    php_flag display_errors off
+    php_flag log_errors on
+    php_value error_log "/var/log/apache2/php_errors.log"
+</IfModule>
+
+# Enable URL rewriting
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    
+    # =========================================================================
+    # MEDIA CONTENT ACCESS RULES
+    # Priority order: Direct file access > Router.php > Fallback
+    # =========================================================================
+    
+    # OPTION 1: Direct access to media/content files via /content/ URL
+    # This allows Apache to serve files directly without PHP if the file exists
+    # Check if the actual file exists in media/content directory
+    RewriteCond %{DOCUMENT_ROOT}/media/content/$1 -f
+    RewriteRule ^content/(.*)$ media/content/$1 [L]
+    
+    # OPTION 2: Route remaining /content/* requests to router.php
+    # For cases where direct file access doesn't match (404 handling, security)
+    RewriteRule ^content/(.*)$ router.php [L,QSA]
+    
+    # Route /media/uploads/* to router.php for uploaded files
+    RewriteRule ^media/uploads/(.*)$ router.php [L,QSA]
+    
+    # Route /hls/* to router.php (DEPRECATED - returns 410 Gone)
+    # Legacy path no longer used - all HLS now under /content/.../hls/
+    RewriteRule ^hls/(.*)$ router.php [L,QSA]
+    
+    # =========================================================================
+    # Standard rules for static files and PHP endpoints
+    # =========================================================================
+    
+    # Allow access to static files
+    RewriteCond %{REQUEST_URI} \.(html|css|js|jpg|jpeg|png|gif|ico)$ [NC]
+    RewriteRule ^ - [L]
+    
+    # Allow access to health check (no auth required)
+    RewriteCond %{REQUEST_URI} health\.php$
+    RewriteRule ^ - [L]
+    
+    # Allow access to test connection endpoint
+    RewriteCond %{REQUEST_URI} test-connection\.php$
+    RewriteRule ^ - [L]
+    
+    # Allow access to dashboard
+    RewriteCond %{REQUEST_URI} dashboard\.php$
+    RewriteRule ^ - [L]
+    
+    # Allow access to compress endpoint
+    RewriteCond %{REQUEST_URI} compress\.php$
+    RewriteRule ^ - [L]
+    
+    # Don't rewrite if file or directory exists (for other files)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    
+    # Default: route all other unmatched requests to index.php
+    RewriteRule . index.php [L,QSA]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Content-Type-Options "nosniff"
+    
+    # CORS headers for media content files
+    <FilesMatch "\.(m3u8|ts|mp4|webm|webp|jpg|jpeg|png|gif)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Range, Accept-Encoding"
+    </FilesMatch>
+</IfModule>
+
+# Cache control for HLS files
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType application/vnd.apple.mpegurl "access plus 0 seconds"
+    ExpiresByType application/x-mpegURL "access plus 0 seconds"
+    ExpiresByType video/MP2T "access plus 1 year"
+    ExpiresByType video/mp4 "access plus 1 year"
+    ExpiresByType video/webm "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+</IfModule>
+
+# Set correct MIME types
+<IfModule mod_mime.c>
+    AddType application/vnd.apple.mpegurl .m3u8
+    AddType video/MP2T .ts
+    AddType video/mp4 .mp4
+    AddType video/webm .webm
+    AddType image/webp .webp
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "(config\.php|VideoProcessor\.php|setup\.php|\.log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

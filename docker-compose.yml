@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  vps-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vps-api
+    ports:
+      - "80"
+    volumes:
+      - vps-api-videos:/var/www/html/videos
+      - vps-api-hls:/var/www/html/hls
+      - vps-api-logs:/var/www/html/logs
+      # CRITICAL: Media content directory - stores processed videos, HLS files, thumbnails
+      # This prevents data loss during container rebuild/redeploy
+      - vps-api-media-content:/var/www/html/media/content
+      - vps-api-media-uploads:/var/www/html/media/uploads
+    environment:
+      API_KEY: "CHANGE_THIS_TO_YOUR_SECURE_API_KEY_64_CHARS"
+      ADMIN_PASSWORD: "CHANGE_THIS_TO_YOUR_SECURE_PASSWORD"
+      BASE_URL: "https://v.ogtemplate.com"
+      HLS_URL_BASE: "https://v.ogtemplate.com/hls"
+      ALLOWED_ORIGINS: "https://your-wordpress-site.com"
+      FFMPEG_PATH: "/usr/bin/ffmpeg"
+      PARALLEL_LIMIT: "1"
+      # Set to 'false' if thumbnail/video downloads fail due to SSL certificate issues
+      VERIFY_SSL_DOWNLOADS: "true"
+      # SECURITY: Restrict download domains to your WordPress site(s) only
+      # Using '*' is convenient but allows downloads from any domain
+      # For production, set to specific domain(s): "your-wordpress-site.com,cdn.your-site.com"
+      ALLOWED_DOWNLOAD_DOMAINS: "*"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Traefik labels for Coolify automatic routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.vps-api.rule=Host(`v.ogtemplate.com`)"
+      - "traefik.http.routers.vps-api.entrypoints=websecure"
+      - "traefik.http.routers.vps-api.tls=true"
+      - "traefik.http.routers.vps-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vps-api.loadbalancer.server.port=80"
+      - "traefik.http.services.vps-api.loadbalancer.server.scheme=http"
+      # HTTP to HTTPS redirect
+      - "traefik.http.routers.vps-api-http.rule=Host(`v.ogtemplate.com`)"
+      - "traefik.http.routers.vps-api-http.entrypoints=web"
+      - "traefik.http.routers.vps-api-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    networks:
+      - coolify
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  vps-api-videos:
+    driver: local
+  vps-api-hls:
+    driver: local
+  vps-api-logs:
+    driver: local
+  vps-api-media-content:
+    driver: local
+  vps-api-media-uploads:
+    driver: local

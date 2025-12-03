@@ -1,0 +1,33 @@
+# Log files
+logs/*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# Environment files
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependency directories (if using composer)
+vendor/
+
+# Video processing directories (if storing locally)
+videos/
+hls/
+compressed/
+
+# But keep directory structure
+!logs/.gitkeep
+!videos/.gitkeep
+!hls/.gitkeep
+!compressed/.gitkeep

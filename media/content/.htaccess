@@ -1,0 +1,70 @@
+# Media Content Directory - Public Access Configuration
+# This directory contains processed videos, HLS files, and thumbnails
+
+# Allow public access to all media files
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# CORS Headers for cross-origin access
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+    Header set Access-Control-Allow-Headers "Range, Accept-Encoding, Origin"
+    Header set Access-Control-Expose-Headers "Content-Length, Content-Range"
+</IfModule>
+
+# Correct MIME types for media files
+<IfModule mod_mime.c>
+    AddType application/vnd.apple.mpegurl .m3u8
+    AddType video/MP2T .ts
+    AddType video/mp4 .mp4
+    AddType video/webm .webm
+    AddType image/webp .webp
+    AddType image/jpeg .jpg .jpeg
+    AddType image/png .png
+</IfModule>
+
+# Enable partial content serving for video streaming
+<IfModule mod_headers.c>
+    <FilesMatch "\.(mp4|webm|ts)$">
+        Header set Accept-Ranges "bytes"
+    </FilesMatch>
+</IfModule>
+
+# Cache control
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # HLS playlists - no cache (always fresh)
+    ExpiresByType application/vnd.apple.mpegurl "access plus 0 seconds"
+    ExpiresByType application/x-mpegURL "access plus 0 seconds"
+    
+    # Video segments and MP4 files - long cache
+    ExpiresByType video/MP2T "access plus 1 year"
+    ExpiresByType video/mp4 "access plus 1 year"
+    ExpiresByType video/webm "access plus 1 year"
+    
+    # Images - long cache
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+</IfModule>
+
+# Prevent PHP execution in this directory for security
+<FilesMatch "\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>

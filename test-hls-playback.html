@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLS Playback Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 30px; color: #00d9ff; }
+        .test-section { 
+            background: #16213e; 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 20px;
+        }
+        h2 { color: #00d9ff; margin-bottom: 15px; font-size: 1.2em; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #aaa; font-size: 0.9em; }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 14px;
+        }
+        input[type="text"]:focus { border-color: #00d9ff; outline: none; }
+        button {
+            background: #00d9ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover { background: #00b8d4; transform: translateY(-1px); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .video-container { 
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+        video { 
+            width: 100%; 
+            max-height: 500px;
+            display: block;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .status.success { background: rgba(0, 255, 0, 0.1); border: 1px solid #00ff00; }
+        .status.error { background: rgba(255, 0, 0, 0.1); border: 1px solid #ff0000; }
+        .status.info { background: rgba(0, 217, 255, 0.1); border: 1px solid #00d9ff; }
+        .quality-buttons { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .quality-btn {
+            background: #0f3460;
+            border: 2px solid #0f3460;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 13px;
+        }
+        .quality-btn:hover { border-color: #00d9ff; }
+        .quality-btn.active { background: #00d9ff; color: #1a1a2e; border-color: #00d9ff; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-item {
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 1.4em; color: #00d9ff; font-weight: 600; }
+        .stat-label { font-size: 0.8em; color: #aaa; margin-top: 4px; }
+        .device-info {
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HLS Streaming Playback Test</h1>
+        
+        <div class="device-info">
+            <strong>Device:</strong> <span id="deviceInfo">Detecting...</span>
+        </div>
+        
+        <div class="test-section">
+            <h2>Enter HLS Master Playlist URL</h2>
+            <div class="input-group">
+                <label for="hlsUrl">Master Playlist URL (master.m3u8)</label>
+                <input type="text" id="hlsUrl" placeholder="https://v.ogtemplate.com/content/2024/11/12345/hls/master.m3u8">
+            </div>
+            <button onclick="loadVideo()">Load Video</button>
+            <button onclick="testNative()" style="margin-left: 10px; background: #0f3460; color: #fff;">Test Native</button>
+        </div>
+        
+        <div class="test-section" id="playerSection" style="display: none;">
+            <h2>Video Player</h2>
+            <div class="video-container">
+                <video id="videoPlayer" controls playsinline></video>
+            </div>
+            
+            <div class="quality-buttons" id="qualityButtons"></div>
+            
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-item">
+                    <div class="stat-value" id="currentQuality">-</div>
+                    <div class="stat-label">Quality</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="bandwidth">-</div>
+                    <div class="stat-label">Bandwidth</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="buffer">-</div>
+                    <div class="stat-label">Buffer</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="latency">-</div>
+                    <div class="stat-label">Latency</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Status Log</h2>
+            <div id="statusLog"></div>
+        </div>
+    </div>
+    
+    <script>
+        let hls = null;
+        let statsInterval = null;
+        
+        function detectDevice() {
+            const ua = navigator.userAgent;
+            let device = 'Desktop';
+            let browser = 'Unknown';
+            let hlsSupport = 'HLS.js';
+            
+            if (/iPhone|iPad|iPod/.test(ua)) {
+                device = 'iOS';
+                hlsSupport = 'Native';
+            } else if (/Android/.test(ua)) {
+                device = 'Android';
+            } else if (/Mac/.test(ua)) {
+                device = 'Mac';
+            } else if (/Windows/.test(ua)) {
+                device = 'Windows';
+            } else if (/Linux/.test(ua)) {
+                device = 'Linux';
+            }
+            
+            if (/Chrome/.test(ua) && !/Edge/.test(ua)) browser = 'Chrome';
+            else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+            else if (/Firefox/.test(ua)) browser = 'Firefox';
+            else if (/Edge/.test(ua)) browser = 'Edge';
+            
+            const video = document.createElement('video');
+            const nativeHLS = video.canPlayType('application/vnd.apple.mpegurl') !== '';
+            
+            document.getElementById('deviceInfo').innerHTML = 
+                `${device} | ${browser} | Native HLS: ${nativeHLS ? 'Yes' : 'No'} | Using: ${nativeHLS ? 'Native' : 'HLS.js'}`;
+            
+            return { device, browser, nativeHLS };
+        }
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('statusLog');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div class="status ${type}">[${time}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function loadVideo() {
+            const url = document.getElementById('hlsUrl').value.trim();
+            if (!url) {
+                log('Please enter a valid HLS URL', 'error');
+                return;
+            }
+            
+            const video = document.getElementById('videoPlayer');
+            const playerSection = document.getElementById('playerSection');
+            
+            playerSection.style.display = 'block';
+            log(`Loading: ${url}`);
+            
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            
+            if (statsInterval) {
+                clearInterval(statsInterval);
+            }
+            
+            const testVideo = document.createElement('video');
+            if (testVideo.canPlayType('application/vnd.apple.mpegurl')) {
+                log('Using native HLS support (Safari/iOS)', 'success');
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => {
+                    log('Video metadata loaded', 'success');
+                });
+                video.addEventListener('canplay', () => {
+                    log('Video ready to play', 'success');
+                });
+                video.addEventListener('error', (e) => {
+                    log(`Video error: ${video.error?.message || 'Unknown error'}`, 'error');
+                });
+                video.play().catch(e => log(`Autoplay blocked: ${e.message}`, 'info'));
+            } else if (Hls.isSupported()) {
+                log('Using HLS.js for playback', 'success');
+                hls = new Hls({
+                    debug: false,
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    backBufferLength: 90
+                });
+                
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                
+                hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+                    log(`Manifest loaded: ${data.levels.length} quality levels found`, 'success');
+                    displayQualityLevels(data.levels);
+                    video.play().catch(e => log(`Autoplay blocked: ${e.message}`, 'info'));
+                });
+                
+                hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+                    const level = hls.levels[data.level];
+                    log(`Quality switched to: ${level.height}p (${Math.round(level.bitrate/1000)}kbps)`, 'info');
+                    updateQualityButtons(data.level);
+                });
+                
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        log(`Fatal error: ${data.type} - ${data.details}`, 'error');
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                log('Network error - attempting recovery...', 'info');
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                log('Media error - attempting recovery...', 'info');
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                log('Cannot recover from error', 'error');
+                                hls.destroy();
+                                break;
+                        }
+                    } else {
+                        log(`Non-fatal error: ${data.details}`, 'error');
+                    }
+                });
+                
+                startStatsUpdate();
+            } else {
+                log('HLS is not supported in this browser', 'error');
+            }
+        }
+        
+        function testNative() {
+            const url = document.getElementById('hlsUrl').value.trim();
+            if (!url) {
+                log('Please enter a valid HLS URL', 'error');
+                return;
+            }
+            
+            window.open(url, '_blank');
+            log('Opened HLS URL in new tab (for native player test)', 'info');
+        }
+        
+        function displayQualityLevels(levels) {
+            const container = document.getElementById('qualityButtons');
+            container.innerHTML = '<button class="quality-btn" onclick="setAutoQuality()">Auto</button>';
+            
+            levels.forEach((level, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'quality-btn';
+                btn.textContent = `${level.height}p`;
+                btn.onclick = () => setQuality(index);
+                container.appendChild(btn);
+            });
+        }
+        
+        function setQuality(level) {
+            if (hls) {
+                hls.currentLevel = level;
+                log(`Manually switched to level ${level}`, 'info');
+                updateQualityButtons(level);
+            }
+        }
+        
+        function setAutoQuality() {
+            if (hls) {
+                hls.currentLevel = -1;
+                log('Switched to automatic quality selection', 'info');
+                updateQualityButtons(-1);
+            }
+        }
+        
+        function updateQualityButtons(activeLevel) {
+            const buttons = document.querySelectorAll('.quality-btn');
+            buttons.forEach((btn, index) => {
+                btn.classList.remove('active');
+                if ((index === 0 && activeLevel === -1) || (index === activeLevel + 1)) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            if (hls && activeLevel >= 0 && hls.levels[activeLevel]) {
+                document.getElementById('currentQuality').textContent = hls.levels[activeLevel].height + 'p';
+            } else {
+                document.getElementById('currentQuality').textContent = 'Auto';
+            }
+        }
+        
+        function startStatsUpdate() {
+            statsInterval = setInterval(() => {
+                if (!hls) return;
+                
+                const video = document.getElementById('videoPlayer');
+                
+                if (hls.currentLevel >= 0 && hls.levels[hls.currentLevel]) {
+                    document.getElementById('currentQuality').textContent = 
+                        hls.levels[hls.currentLevel].height + 'p';
+                }
+                
+                if (hls.bandwidthEstimate) {
+                    document.getElementById('bandwidth').textContent = 
+                        Math.round(hls.bandwidthEstimate / 1000) + ' kbps';
+                }
+                
+                if (video.buffered.length > 0) {
+                    const buffered = video.buffered.end(video.buffered.length - 1) - video.currentTime;
+                    document.getElementById('buffer').textContent = 
+                        buffered.toFixed(1) + 's';
+                }
+                
+                if (hls.latency !== undefined) {
+                    document.getElementById('latency').textContent = 
+                        hls.latency.toFixed(2) + 's';
+                } else {
+                    document.getElementById('latency').textContent = 'VOD';
+                }
+            }, 1000);
+        }
+        
+        detectDevice();
+    </script>
+</body>
+</html>
